@@ -32,4 +32,14 @@ export const TOPICS: Record<string, string> = {
 };
 
 export type Video = { id: string; title: string; desc: string; date: string; thumb: string; ch: string; chTitle: string };
-export type Channel = { id: string; title: string; thumb: string; handle: string; vids: Video[] };
+export type Channel = { id: string; title: string; thumb: string; handle: string; vids: Video[]; partial?: boolean };
+
+// DISCOVERY: finds more Islamic videos and channels beyond the whitelist. Every result still passes the
+// channel check, keyword check and blocklist. Each query costs 100 YouTube API units (cached 12h).
+export const DISCOVER_ON = true;
+export const DISCOVER: string[] = [
+  "Quran recitation", "Islamic lecture", "Islamic reminder", "Seerah of the Prophet", "hadith explained",
+  "tafsir of the Quran", "Islamic khutbah", "dua and dhikr", "Ramadan Islamic", "Islamic history", "fiqh Islamic ruling",
+];
+// Channel IDs (UC...) that must never appear anywhere.
+export const BLOCKED_CHANNELS: string[] = [];

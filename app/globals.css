@@ -66,3 +66,11 @@ nav button.on{color:#04070d;font-weight:700;background:linear-gradient(135deg,va
 .nf h1{font-family:Orbitron,sans-serif;font-size:clamp(64px,16vw,130px);line-height:1;text-shadow:0 0 40px #b36bff}
 .nf p{margin:8px 0 18px;font-size:clamp(14px,3.6vw,18px);color:#e6d4ff}
 .nf a{display:inline-block;background:#fff;color:#2a0a52;font-weight:700;padding:12px 24px;border-radius:99px;text-decoration:none}
+.clink{color:var(--a);cursor:pointer}.clink:hover{text-decoration:underline}
+.brand{cursor:pointer}.ch img,.clk{cursor:pointer}
+.back{border:1px solid var(--line);background:var(--glass);color:var(--ink);border-radius:99px;padding:8px 16px;font:inherit;font-size:13px;cursor:pointer;margin:12px 0}
+.chead{display:flex;align-items:center;gap:14px;border:1px solid var(--line);border-radius:22px;padding:18px;background:linear-gradient(135deg,rgba(124,92,255,.16),rgba(45,226,176,.08)),var(--glass)}
+.chead img{width:72px;height:72px;border-radius:50%;border:2px solid var(--a);box-shadow:0 0 24px rgba(45,226,176,.4)}
+.chead div{flex:1;min-width:0}.chead h1{font-size:20px;line-height:1.25}.chead small{color:var(--mut)}
+.ytl{display:inline-block;margin-top:10px;color:var(--mut);font-size:12px;text-decoration:none}
+@media(max-width:520px){.chead{flex-wrap:wrap}}
