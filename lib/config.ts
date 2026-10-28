@@ -7,8 +7,16 @@ export const CHANNELS: string[] = [
 // Second safety layer: any video whose title/description contains these is dropped.
 export const BLOCK: string[] = [
   "music video", "official video", "lyrics", "song", "movie", "trailer", "gaming", "gameplay",
-  "prank", "vlog", "reaction", "remix", "dj ", "betting", "casino", "dating",
+  "prank", "vlog", "reaction", "remix", "dj ", "betting", "casino", "dating", "dua lipa",
+  // politics and ideology topics are never allowed
+  "feminis", "wake up america", "trump", "biden", "republican", "democrat", "election", "maga", "woke",
+  "lgbt", "transgender", "abortion", "politic",
 ];
+
+// STRICT: a video is only shown if its title or description contains at least one Islamic keyword.
+export const STRICT_KEYWORDS = true;
+export const ISLAMIC =
+  "islam|muslim|quran|qur'an|allah|prophet|sunnah|hadith|\\bdua\\b|salah|salat|ramadan|hajj|umrah|khutbah|jumu|tafsir|seerah|sahaba|fiqh|halal|haram|iman|taqwa|jannah|dhikr|sheikh|shaykh|ustadh|imam|mufti|surah|ayah|sharia|deen|ummah|\\beid\\b|masjid|mosque|bismillah|alhamdulillah|subhanallah|inshallah|aqeedah|tawheed|nasheed|[\\u0600-\\u06FF]";
 
 // Topic chips: keyword filters over the approved videos.
 export const TOPICS: Record<string, string> = {
