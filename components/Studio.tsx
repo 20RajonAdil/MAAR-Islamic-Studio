@@ -26,7 +26,9 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
     setReady(true);
     fetch("/api/videos").then((r) => r.json()).then((j) => {
       if (j.error) { setErrs([j.error]); setStatus("error"); return; }
-      setChans(j.channels); setErrs(j.errors || []); setStatus("ready");
+      setChans(j.channels);
+      setErrs(j.channels.length ? [] : [j.errors?.[0] || "No approved channels could be loaded. Check the handles in lib/config.ts."]);
+      setStatus("ready");
     }).catch(() => { setErrs(["Could not reach the server."]); setStatus("error"); });
   }, []);
   useEffect(() => { if (ready) localStorage.setItem("maar_subs", JSON.stringify(subs)); }, [subs, ready]);
@@ -42,8 +44,8 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
 
   const VCard = (v: Video) => (
     <div className="v" key={v.id} tabIndex={0} onClick={() => setPlaying(v)} onKeyDown={(e) => e.key === "Enter" && setPlaying(v)}>
-      <img src={v.thumb} alt="" loading="eager" />
-      <div><h3>{v.title}</h3><p>{v.chTitle} · {ago(v.date)}</p></div>
+      <div className="th"><img src={v.thumb} alt="" loading="eager" /></div>
+      <div className="in"><h3>{v.title}</h3><p>{v.chTitle} · {ago(v.date)}</p></div>
     </div>
   );
   const Sub = ({ id }: { id: string }) => (
@@ -66,7 +68,15 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
         <div className="chips">{Object.keys(TOPICS).map((t) => <button key={t} className={"chip" + (t === topic ? " on" : "")} onClick={() => setTopic(t)}>{t}</button>)}</div>
       )}
       <main>
-        {status === "loading" && <div className="empty">Loading Islamic videos…</div>}
+        {status === "loading" && <div className="empty"><div className="orbit" />Loading Islamic videos…</div>}
+        {status === "ready" && view === "home" && !q && topic === "All" && chans.length > 0 && (
+          <section className="hero">
+            <span className="tag">Approved Islamic content only</span>
+            <h1>Knowledge, <em>illuminated.</em></h1>
+            <p>Curated channels. No noise. Nothing outside the whitelist ever reaches your screen.</p>
+            <div className="stats"><div><b>{chans.length}</b><small>Channels</small></div><div><b>{vids.length}</b><small>Videos</small></div><div><b>{subs.length}</b><small>Subscribed</small></div></div>
+          </section>
+        )}
         {errs[0] && <div className="err">{errs[0]}</div>}
         {status === "ready" && view === "home" && (list.length ? <><h2>{q || topic !== "All" ? "Results" : "Latest"}</h2><div className="grid">{list.map(VCard)}</div></> : <div className="empty">No Islamic videos match. Try another keyword.</div>)}
         {status === "ready" && view === "channels" && <><h2>Approved channels</h2><div className="chs">{chans.map(CCard)}</div></>}

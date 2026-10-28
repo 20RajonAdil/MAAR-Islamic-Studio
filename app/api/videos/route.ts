@@ -19,7 +19,9 @@ async function load(handle: string): Promise<Channel | null> {
   const ch = await yt("channels", { part: "snippet,contentDetails", forHandle: handle });
   const it = ch.items?.[0];
   if (!it) return null;
-  const pl = await yt("playlistItems", { part: "snippet", maxResults: "50", playlistId: it.contentDetails.relatedPlaylists.uploads });
+  const uploads = it.contentDetails?.relatedPlaylists?.uploads || "UU" + it.id.slice(2);
+  const pl = await yt("playlistItems", { part: "snippet", maxResults: "50", playlistId: uploads }).catch(() => null);
+  if (!pl) return null; // channel has no readable uploads: skip it quietly
   return {
     id: it.id, title: it.snippet.title, thumb: it.snippet.thumbnails?.default?.url || "", handle,
     vids: (pl.items || [])
@@ -35,7 +37,7 @@ async function load(handle: string): Promise<Channel | null> {
 
 export async function GET() {
   if (!process.env.YOUTUBE_API_KEY) return NextResponse.json({ error: "Missing YOUTUBE_API_KEY environment variable." }, { status: 500 });
-  const res = await Promise.allSettled(CHANNELS.map(load));
+  const res = await Promise.allSettled(CHANNELS.map((h) => load(h)));
   const channels = res.flatMap((r) => (r.status === "fulfilled" && r.value ? [r.value] : []));
   const errors = [...new Set(res.flatMap((r) => (r.status === "rejected" ? [(r.reason as Error).message] : [])))];
   return NextResponse.json({ channels, errors });
