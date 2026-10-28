@@ -10,7 +10,7 @@ const ago = (d: string) => {
   return "Just now";
 };
 
-export default function Studio() {
+export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
   const [chans, setChans] = useState<Channel[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errs, setErrs] = useState<string[]>([]);
@@ -59,7 +59,7 @@ export default function Studio() {
   return (
     <>
       <header>
-        <div className="brand"><img src="/logo.svg" alt="MAAR Islamic Studio" /><div><b>مَعَار</b><span>MAAR Islamic Studio</span></div></div>
+        <div className="top"><div className="brand"><img src="/logo.svg" alt="MAAR Islamic Studio" /><div><b>مَعَار</b><span>MAAR Islamic Studio</span></div></div>{authSlot}</div>
         <div className="search"><input type="search" value={q} onChange={(e) => { setQ(e.target.value.trim()); if (view === "channels") setView("home"); }} placeholder="Search Islamic videos…" /></div>
       </header>
       {view !== "channels" && (

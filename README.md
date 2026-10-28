@@ -12,3 +12,6 @@ Change `CHANNELS`, `BLOCK` and `TOPICS` in `lib/config.ts`.
 
 ## Local run
 `cp .env.example .env.local`, add your key, then `npm install && npm run dev`.
+
+## Google sign-in
+Add `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` in Vercel. Redirect URI: `https://maarislamicstudio.vercel.app/api/auth/callback/google`.
