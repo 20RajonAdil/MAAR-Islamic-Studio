@@ -12,6 +12,6 @@ export async function GET(req: Request) {
     const it = r.items?.[0];
     if (!it || !channelOk(it.id, it.snippet.title, it.snippet.description))
       return NextResponse.json({ error: "This channel is not an approved Islamic channel." }, { status: 404 });
-    return NextResponse.json({ channel: toChannel(it, "", false, (await uploads(it)) || []) });
+    return NextResponse.json({ channel: toChannel(it, "", false, (await uploads(it, false))?.vids || []) });
   } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 500 }); }
 }

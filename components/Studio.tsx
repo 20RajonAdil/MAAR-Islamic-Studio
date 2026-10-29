@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { TOPICS, type Channel, type Video } from "@/lib/config";
+import { rank } from "@/lib/rank";
+import { detectLang, LANG_NAME } from "@/lib/lang";
 
 type View = "home" | "channels" | "subs";
 type Info = { id: string; title: string; thumb: string; count?: number };
@@ -9,6 +11,17 @@ const ago = (d: string) => {
   for (const [n, l] of [[31536000, "year"], [2592000, "month"], [604800, "week"], [86400, "day"], [3600, "hour"]] as const)
     if (s >= n) { const x = Math.floor(s / n); return `${x} ${l}${x > 1 ? "s" : ""} ago`; }
   return "Just now";
+};
+
+const merge = (prev: Channel[], add: Channel[]) => {
+  const m = new Map(prev.map((c) => [c.id, c]));
+  for (const c of add) {
+    const o = m.get(c.id);
+    if (!o) { m.set(c.id, c); continue; }
+    const ids = new Set(o.vids.map((v) => v.id));
+    m.set(c.id, { ...o, vids: [...o.vids, ...c.vids.filter((v) => !ids.has(v.id))] });
+  }
+  return [...m.values()];
 };
 
 export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
@@ -24,12 +37,15 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
   const [playing, setPlaying] = useState<Video | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [chLoad, setChLoad] = useState(false);
+  const [lang, setLang] = useState("en");
 
   useEffect(() => {
     try { setSubs(JSON.parse(localStorage.getItem("maar_subs") || "[]")); setInfo(JSON.parse(localStorage.getItem("maar_subinfo") || "{}")); } catch {}
     setReady(true);
-    fetch("/api/videos").then((r) => r.json()).then((j) => {
+    const saved = localStorage.getItem("maar_lang") || navigator.language.slice(0, 2);
+    fetch("/api/videos?lang=" + saved).then((r) => r.json()).then((j) => {
       if (j.error) { setErrs([j.error]); setStatus("error"); return; }
+      setLang(j.lang);
       setChans(j.channels);
       setErrs(j.channels.length ? [] : [j.errors?.[0] || "No approved channels could be loaded. Check the handles in lib/config.ts."]);
       setStatus("ready");
@@ -42,6 +58,22 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
     const go = () => { const id = new URLSearchParams(location.search).get("channel"); id ? openChannel(id, false) : setOpenId(null); };
     go(); window.addEventListener("popstate", go); return () => window.removeEventListener("popstate", go);
   }, [status]); // eslint-disable-line
+
+  // Loads Home content for a language (from a country, a language picker or a search in that language).
+  async function loadLang(l: string) {
+    setLang(l); localStorage.setItem("maar_lang", l);
+    try { const j = await (await fetch("/api/videos?lang=" + l)).json(); if (j.channels) setChans((p) => merge(p, j.channels)); } catch {}
+  }
+  // Live Islamic search across YouTube; the language of the query steers what is suggested next.
+  useEffect(() => {
+    if (status !== "ready" || q.length < 2) return;
+    const dl = detectLang(q); if (dl && dl !== lang) loadLang(dl);
+    const ac = new AbortController();
+    const t = setTimeout(async () => {
+      try { const j = await (await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${dl || lang}`, { signal: ac.signal })).json(); if (j.channels?.length) setChans((p) => merge(p, j.channels)); } catch {}
+    }, 450);
+    return () => { clearTimeout(t); ac.abort(); };
+  }, [q, status]); // eslint-disable-line
 
   async function openChannel(id: string, push = true) {
     setPlaying(null); setOpenId(id); window.scrollTo(0, 0);
@@ -58,11 +90,9 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
   function closeChannel() { setOpenId(null); history.pushState(null, "", "/"); }
 
   const vids = useMemo(() => chans.flatMap((c) => c.vids).sort((a, b) => +new Date(b.date) - +new Date(a.date)), [chans]);
-  const match = (v: Video) => {
-    const hay = (v.title + " " + v.desc).toLowerCase();
-    if (topic !== "All" && !new RegExp(TOPICS[topic], "i").test(hay)) return false;
-    return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w) || v.chTitle.toLowerCase().includes(w));
-  };
+  const topicOk = (v: Video) => topic === "All" || new RegExp(TOPICS[topic], "i").test((v.title + " " + v.desc).toLowerCase());
+  const subSet = useMemo(() => new Set(subs), [subs]);
+  const find = (pool: Video[]) => (q ? rank(q, pool, { lang, subs: subSet }) : pool).filter(topicOk);
   const toggle = (id: string) => {
     const c = chans.find((x) => x.id === id);
     if (c) setInfo((i) => ({ ...i, [id]: { id, title: c.title, thumb: c.thumb } }));
@@ -85,9 +115,10 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
       <Sub id={c.id} />
     </div>
   );
-  const cInfo = (c: Channel): Info => ({ id: c.id, title: c.title, thumb: c.thumb, count: c.vids.length });
+  const cInfo = (c: Channel): Info => ({ id: c.id, title: c.title, thumb: c.thumb, count: c.total ?? c.vids.length });
 
-  const list = vids.filter(match);
+  const list = useMemo(() => find(vids), [vids, q, topic, lang, subSet]); // eslint-disable-line
+  const suggested = useMemo(() => (lang === "en" ? [] : vids.filter((v) => v.lang === lang || detectLang(v.title) === lang).slice(0, 12)), [vids, lang]);
   const subList: Info[] = subs.map((id) => { const c = chans.find((x) => x.id === id); return c ? cInfo(c) : info[id]; }).filter(Boolean);
   const cur = openId ? chans.find((c) => c.id === openId && !c.partial) || chans.find((c) => c.id === openId) : null;
 
@@ -95,7 +126,7 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
     <>
       <header>
         <div className="top"><div className="brand" onClick={() => { setOpenId(null); setView("home"); history.pushState(null, "", "/"); }}><img src="/logo.svg" alt="MAAR Islamic Studio" /><div><b>مَعَار</b><span>MAAR Islamic Studio</span></div></div>{authSlot}</div>
-        <div className="search"><input type="search" value={q} onChange={(e) => { setQ(e.target.value.trim()); if (view === "channels") setView("home"); }} placeholder="Search Islamic videos and channels…" /></div>
+        <div className="search"><select value={lang} onChange={(e) => loadLang(e.target.value)} aria-label="Language">{Object.entries(LANG_NAME).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select><input type="search" value={q} onChange={(e) => { setQ(e.target.value.trim()); if (view === "channels") setView("home"); }} placeholder="Search Islamic videos and channels…" /></div>
       </header>
       {!(view === "channels" && !openId) && (
         <div className="chips">{Object.keys(TOPICS).map((t) => <button key={t} className={"chip" + (t === topic ? " on" : "")} onClick={() => setTopic(t)}>{t}</button>)}</div>
@@ -109,10 +140,10 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
             {chLoad && <div className="empty"><div className="orbit" />Loading channel…</div>}
             {cur && (
               <>
-                <div className="chead"><img src={cur.thumb} alt="" /><div><h1>{cur.title}</h1><small>{cur.vids.length} Islamic videos{cur.partial ? " found so far" : ""}</small></div><Sub id={cur.id} /></div>
+                <div className="chead"><img src={cur.thumb} alt="" /><div><h1>{cur.title}</h1><small>{cur.partial ? cur.vids.length + " Islamic videos found so far" : (cur.total ?? cur.vids.length) + " videos"}</small></div><Sub id={cur.id} /></div>
                 <a className="ytl" href={`https://www.youtube.com/channel/${cur.id}`} target="_blank" rel="noreferrer">Open on YouTube ↗</a>
                 <h2>Videos</h2>
-                <div className="grid">{cur.vids.filter(match).sort((a, b) => +new Date(b.date) - +new Date(a.date)).map(VCard)}</div>
+                <div className="grid">{(q ? find(cur.vids) : [...cur.vids].sort((a, b) => +new Date(b.date) - +new Date(a.date)).filter(topicOk)).map(VCard)}</div>
               </>
             )}
             {!cur && !chLoad && <div className="empty">This channel is not available.</div>}
@@ -126,10 +157,11 @@ export default function Studio({ authSlot }: { authSlot?: React.ReactNode }) {
             <div className="stats"><div><b>{chans.length}</b><small>Channels</small></div><div><b>{vids.length}</b><small>Videos</small></div><div><b>{subs.length}</b><small>Subscribed</small></div></div>
           </section>
         )}
+        {status === "ready" && !openId && view === "home" && !q && topic === "All" && suggested.length > 0 && <><h2>Suggested in {LANG_NAME[lang]}</h2><div className="grid">{suggested.map(VCard)}</div></>}
         {status === "ready" && !openId && view === "home" && (list.length ? <><h2>{q || topic !== "All" ? "Results" : "Latest"}</h2><div className="grid">{list.map(VCard)}</div></> : <div className="empty">No Islamic videos match. Try another keyword.</div>)}
         {status === "ready" && !openId && view === "channels" && <><h2>Islamic channels</h2><div className="chs">{chans.filter((c) => !q || c.title.toLowerCase().includes(q.toLowerCase())).map((c) => CCard(cInfo(c)))}</div></>}
         {status === "ready" && !openId && view === "subs" && (subList.length
-          ? <><h2>Your subscriptions</h2><div className="chs">{subList.map(CCard)}</div><h2>Latest from them</h2><div className="grid">{vids.filter((v) => subs.includes(v.ch) && match(v)).map(VCard)}</div></>
+          ? <><h2>Your subscriptions</h2><div className="chs">{subList.map(CCard)}</div><h2>Latest from them</h2><div className="grid">{find(vids.filter((v) => subs.includes(v.ch))).map(VCard)}</div></>
           : <div className="empty">You have not subscribed to any channel yet.<br />Open Channels and tap Subscribe.</div>)}
       </main>
       <nav>

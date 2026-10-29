@@ -74,3 +74,6 @@ nav button.on{color:#04070d;font-weight:700;background:linear-gradient(135deg,va
 .chead div{flex:1;min-width:0}.chead h1{font-size:20px;line-height:1.25}.chead small{color:var(--mut)}
 .ytl{display:inline-block;margin-top:10px;color:var(--mut);font-size:12px;text-decoration:none}
 @media(max-width:520px){.chead{flex-wrap:wrap}}
+.search{display:flex;gap:8px}.search input{flex:1;min-width:0}
+.search select{border:1px solid var(--line);border-radius:14px;background:var(--glass);color:var(--ink);font:inherit;font-size:13px;padding:0 10px;outline:none}
+.search select option{background:#0a1220;color:#e8f3f1}
